@@ -94,6 +94,13 @@
   .round.rec.active { border-color: var(--accent); color: var(--accent); }
   .round.flash { border: 2px solid var(--chrome-d); color: var(--chrome-d); }
   .round.flash.active { border-color: var(--brass); color: var(--brass); }
+  .round.dial-shutter {
+    border: 2px solid var(--brass); color: var(--lcd);
+    font-weight: 700; font-size: 11px;
+    transition: transform .25s ease;
+    background:
+      radial-gradient(#3A3833, #0E0D0C);
+  }
   .shutter {
     width: 84px; height: 84px; border-radius: 50%;
     background: radial-gradient(var(--chrome-l), var(--chrome-d));
@@ -178,7 +185,7 @@
   <div class="bottom">
     <div class="round rec" id="btnRec">REC</div>
     <div class="shutter" id="btnShot"><div class="inner"><div class="dot"></div></div></div>
-    <div class="round flash" id="btnFlash">&#9675;</div>
+    <div class="round dial-shutter" id="btnShutter"><span id="shutterVal">1/60</span></div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
