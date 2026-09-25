@@ -438,7 +438,14 @@ async function openCamera(){
       video.srcObject.getTracks().forEach(t => t.stop());
     }
     const stream=await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode: facingMode }, audio:false
+      video:{
+        facingMode: facingMode,
+        // Richiede la risoluzione piu' alta possibile (ideale 4K, il browser
+        // sceglie la massima supportata dalla fotocamera).
+        width:  { ideal: 3840 },
+        height: { ideal: 2160 }
+      },
+      audio:false
     });
     video.srcObject=stream; await video.play();
   }catch(e){ toast('Fotocamera non disponibile'); }
