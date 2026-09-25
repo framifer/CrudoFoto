@@ -114,6 +114,32 @@
     border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; z-index: 10;
   }
   .toast.show { opacity: 1; }
+
+  /* Guida effetti */
+  .info-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.8);
+    display: none; align-items: center; justify-content: center; z-index: 20;
+  }
+  .info-overlay.show { display: flex; }
+  .info-box {
+    width: 92%; max-width: 520px; height: 82%;
+    background: var(--panel); border: 1px solid var(--edge);
+    border-radius: 12px; padding: 14px; display: flex; flex-direction: column;
+  }
+  .info-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .info-title { color: var(--brass); font-weight: 700; font-size: 16px; }
+  .info-actions { display: flex; align-items: center; gap: 6px; }
+  .info-lang {
+    background: #3A3833; color: var(--brass); border-radius: 6px;
+    padding: 4px 10px; font-size: 12px;
+  }
+  .info-lang.active { background: var(--brass); color: var(--edge); font-weight: 700; }
+  .info-list { overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .info-item .n { color: var(--lcd); font-weight: 700; font-size: 14px; }
+  .info-item .d { color: var(--brass); font-size: 13px; margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -124,6 +150,7 @@
       <div class="dial active" id="dSound">&#9834;</div>
       <div class="dial" id="dGrid">&#9638;</div>
       <div class="dial" id="dFlash">&#9889;</div>
+      <div class="dial" id="dInfo">i</div>
     </div>
   </div>
 
@@ -154,6 +181,21 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+
+<!-- Finestra guida agli effetti -->
+<div class="info-overlay" id="infoOverlay">
+  <div class="info-box">
+    <div class="info-head">
+      <span class="info-title" id="infoTitle">Guida agli effetti</span>
+      <span class="info-actions">
+        <span class="info-lang active" id="langIt">IT</span>
+        <span class="info-lang" id="langEn">EN</span>
+        <span class="dial" id="infoClose">&#10005;</span>
+      </span>
+    </div>
+    <div class="info-list" id="infoList"></div>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body>
