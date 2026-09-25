@@ -401,6 +401,26 @@ function renderInfoList(){
   document.getElementById('langEn').classList.toggle('active', infoEnglish);
 }
 
+let facingMode = 'environment';   // 'environment' = posteriore, 'user' = selfie
+
+async function openCamera(){
+  try{
+    // Ferma lo stream precedente prima di aprirne uno nuovo
+    if (video && video.srcObject) {
+      video.srcObject.getTracks().forEach(t => t.stop());
+    }
+    const stream=await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode: facingMode }, audio:false
+    });
+    video.srcObject=stream; await video.play();
+  }catch(e){ toast('Fotocamera non disponibile'); }
+}
+
+function flipCamera(){
+  facingMode = (facingMode === 'environment') ? 'user' : 'environment';
+  openCamera();
+}
+
 async function start(){
   const canvas=document.getElementById('gl');
   // dimensione interna del canvas = dimensione visibile
@@ -409,12 +429,7 @@ async function start(){
   initGL(canvas);
 
   video=document.getElementById('video');
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:'environment' }, audio:false
-    });
-    video.srcObject=stream; await video.play();
-  }catch(e){ toast('Fotocamera non disponibile'); }
+  await openCamera();
 
   requestAnimationFrame(draw);
 }
@@ -451,6 +466,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
     renderInfoList();
     document.getElementById('infoOverlay').classList.add('show');
   };
+  document.getElementById('dFlip').onclick=()=>{ flipCamera(); };
   document.getElementById('infoClose').onclick=()=>{
     document.getElementById('infoOverlay').classList.remove('show');
   };
