@@ -30,12 +30,29 @@ const VERT = `
 
 const HEAD = `
   precision mediump float;
+  #define RAWTEX texture2D
   uniform sampler2D uTex;
   uniform float uTime;
   uniform float uIntensity;
+  uniform float uShutter;
   varying vec2 vTex;
   float luma(vec3 c){ return dot(c, vec3(0.299,0.587,0.114)); }
   float rand(vec2 co){ return fract(sin(dot(co, vec2(12.9898,78.233)))*43758.5453); }
+  // Tempo di posa simulato: >0 = lento (motion blur + luminoso), <0 = veloce (scuro)
+  vec4 camShutter(vec2 uv){
+    vec4 c = RAWTEX(uTex, uv);
+    if (uShutter > 0.001){
+      vec2 dir = (uv - 0.5); float amt = uShutter * 0.06;
+      c += RAWTEX(uTex, uv - dir*amt*0.5);
+      c += RAWTEX(uTex, uv - dir*amt);
+      c += RAWTEX(uTex, uv + dir*amt*0.5);
+      c += RAWTEX(uTex, uv + dir*amt);
+      c /= 5.0; c.rgb *= (1.0 + uShutter*0.4);
+    } else if (uShutter < -0.001){
+      c.rgb *= (1.0 + uShutter*0.4);
+    }
+    return c;
+  }
 `;
 
 // Ogni effetto restituisce "col"; alla fine si miscela con l'originale.
@@ -223,8 +240,14 @@ const FOCALS = [
   ['Nat', 1.0], ['30', 1.12], ['35', 1.35], ['50', 1.9], ['85', 3.2]
 ];
 
+// Tempi di posa simulati: etichetta + valore effetto (-1 veloce .. +1 lento)
+const SHUTTER_SPEEDS = [
+  ['1/1000', -1.0], ['1/250', -0.5], ['1/60', 0.0], ['1/15', 0.5], ['1/4', 1.0]
+];
+
 // ---------- Stato ----------
 let gl, programs = [], curEffect = 0, curFocal = 0, intensity = 1.0;
+let curShutter = 2;   // indice tempo di posa (1/60 = normale)
 let texture, video, startTime = performance.now();
 let soundOn = true, gridOn = false, flashOn = false;
 let recorder = null, recChunks = [];
@@ -245,8 +268,12 @@ function buildProgram(frag) {
   return p;
 }
 function fragFor(effect) {
-  return HEAD + `void main(){ ${effect.body}
-    vec3 orig = texture2D(uTex, vTex).rgb;
+  // Le letture della fotocamera dell'effetto passano per camShutter (motion
+  // blur + luminosita' in base al tempo di posa). RAWTEX protegge le letture
+  // interne di camShutter dalla sostituzione.
+  const body = effect.body.replace(/texture2D\(uTex,/g, 'camShutter(');
+  return HEAD + `void main(){ ${body}
+    vec3 orig = camShutter(vTex).rgb;
     gl_FragColor = vec4(mix(orig, clamp(col,0.0,1.0), uIntensity), 1.0);
   }`;
 }
@@ -289,6 +316,7 @@ function draw() {
   gl.uniform1f(gl.getUniformLocation(p, 'uTime'), (performance.now()-startTime)/1000);
   gl.uniform1f(gl.getUniformLocation(p, 'uIntensity'), intensity);
   gl.uniform1f(gl.getUniformLocation(p, 'uZoom'), FOCALS[curFocal][1]);
+  gl.uniform1f(gl.getUniformLocation(p, 'uShutter'), SHUTTER_SPEEDS[curShutter][1]);
   gl.uniform1i(gl.getUniformLocation(p, 'uTex'), 0);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -454,12 +482,20 @@ window.addEventListener('DOMContentLoaded', ()=>{
   const flashHandler=e=>{
     flashOn=!flashOn;
     document.getElementById('dFlash').classList.toggle('active',flashOn);
-    document.getElementById('btnFlash').classList.toggle('active',flashOn);
     // Nota: il flash hardware non e' controllabile in modo affidabile da web.
     toast(flashOn?'Flash: web non supporta la torcia':'Flash off');
   };
   document.getElementById('dFlash').onclick=flashHandler;
-  document.getElementById('btnFlash').onclick=flashHandler;
+
+  // Ghiera SHUTTER SPEED (in basso): a ogni tocco avanza e "gira"
+  let shutterRot = 0;
+  const shutterEl = document.getElementById('btnShutter');
+  shutterEl.onclick=()=>{
+    curShutter = (curShutter + 1) % SHUTTER_SPEEDS.length;
+    document.getElementById('shutterVal').textContent = SHUTTER_SPEEDS[curShutter][0];
+    shutterRot += 72;
+    shutterEl.style.transform = 'rotate(' + shutterRot + 'deg)';
+  };
 
   // Guida effetti "i"
   document.getElementById('dInfo').onclick=()=>{
