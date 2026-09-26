@@ -572,25 +572,28 @@ window.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('dFlip').onclick=()=>{ flipCamera(); };
 
   // ===== FUOCO simulato =====
-  const focusSlider = document.getElementById('focusSlider');
+  const focusBar = document.getElementById('focusBar');
   const focusMarker = document.getElementById('focusMarker');
   const screenEl = document.querySelector('.screen');
+  function placeMarker(){
+    const r = screenEl.getBoundingClientRect();
+    focusMarker.style.left = (focusX * r.width) + 'px';
+    focusMarker.style.top  = (focusY * r.height) + 'px';
+  }
   document.getElementById('dFocus').onclick=(e)=>{
     focusOn = !focusOn;
     e.target.classList.toggle('active', focusOn);
-    focusSlider.classList.toggle('on', focusOn);
+    focusBar.classList.toggle('on', focusOn);
     focusMarker.classList.toggle('on', focusOn);
+    if (focusOn) placeMarker();   // mirino al punto corrente (default centro)
   };
   // Tocco sulla parte inquadrata = punto di fuoco
   screenEl.addEventListener('pointerdown', (ev)=>{
     if (!focusOn) return;
     const r = screenEl.getBoundingClientRect();
-    const x = (ev.clientX - r.left) / r.width;
-    const y = (ev.clientY - r.top) / r.height;
-    focusX = Math.min(1, Math.max(0, x));
-    focusY = Math.min(1, Math.max(0, y));
-    focusMarker.style.left = (focusX * r.width) + 'px';
-    focusMarker.style.top  = (focusY * r.height) + 'px';
+    focusX = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
+    focusY = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
+    placeMarker();
   });
   // Slider raggio fuoco
   document.getElementById('focusRange').oninput=(e)=>{
