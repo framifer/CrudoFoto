@@ -60,13 +60,20 @@ const HEAD = `
 const EFFECTS = [
   { name: 'Nativa', body: `vec3 col = texture2D(uTex, vTex).rgb;` },
   { name: 'Kodachrome', body: `
-      vec3 col = texture2D(uTex,vTex).rgb; float lum=luma(col);
-      vec3 tint = mix(vec3(0.85,0.98,1.02), vec3(1.04,1.0,0.92), smoothstep(0.2,0.8,lum));
-      col*=tint; col = mix(col, mix(vec3(lum), vec3(0.72,0.70,0.66),0.5), 0.28);
-      col=(col-0.5)*1.08+0.5; col+=0.03;
+      vec2 kpx = vec2(1.0/720.0, 1.0/1280.0);
+      vec3 col = texture2D(uTex,vTex).rgb;
+      vec3 kb = (texture2D(uTex,vTex+vec2(kpx.x,0.0)).rgb + texture2D(uTex,vTex-vec2(kpx.x,0.0)).rgb
+               + texture2D(uTex,vTex+vec2(0.0,kpx.y)).rgb + texture2D(uTex,vTex-vec2(0.0,kpx.y)).rgb)*0.25;
+      col += (col - kb) * 0.5;   // nitidezza locale (contorni piu' netti)
+      float lum=luma(col);
+      vec3 tint = mix(vec3(0.86,0.98,1.02), vec3(1.05,1.0,0.92), smoothstep(0.2,0.8,lum));
+      col*=tint; col = mix(col, mix(vec3(lum), vec3(0.72,0.70,0.66),0.5), 0.18);
+      float rd = clamp((col.r-max(col.g,col.b))*2.0,0.0,1.0);
+      col.r += rd*0.06; col.g += rd*0.01;   // rossi caldi ma misurati
+      col=(col-0.5)*1.12+0.5; col+=0.012;    // meno velatura
       float bd = clamp((col.b-max(col.r,col.g))*2.0,0.0,1.0);
-      col = mix(col, vec3(0.62,0.78,0.86), bd*0.25);
-      col += (rand(vTex*1024.0+uTime)-0.5)*0.06;
+      col = mix(col, vec3(0.62,0.78,0.86), bd*0.22);
+      col += (rand(vTex*1024.0+uTime)-0.5)*0.05;
   `},
   { name: 'Portra', body: `
       vec3 col = texture2D(uTex,vTex).rgb; float lum=luma(col);
@@ -77,8 +84,9 @@ const EFFECTS = [
   `},
   { name: 'Gold 200', body: `
       vec3 col = texture2D(uTex,vTex).rgb; float lum=luma(col);
-      col.r*=1.10; col.g*=1.05; col.b*=0.85;
-      col += vec3(0.05,0.035,0.0)*(1.0-lum);
+      float hiW = smoothstep(0.6,1.0,lum);
+      col.r*=1.08; col.g*=1.04; col.b*=mix(0.87,0.98,hiW);
+      col += vec3(0.04,0.028,0.0)*(1.0-lum);
       col=(col-0.5)*1.12+0.5; col=mix(vec3(lum),col,1.15);
       col += (rand(vTex*900.0+uTime)-0.5)*0.06;
   `},
@@ -108,10 +116,16 @@ const EFFECTS = [
       col += (rand(vTex*1450.0+uTime)-0.5)*0.035;
   `},
   { name: 'Lomography', body: `
-      vec3 col = texture2D(uTex,vTex).rgb; float lum=luma(col);
+      vec2 lcen = vTex - 0.5; float lr2 = dot(lcen, lcen);
+      vec2 luv = clamp(0.5 + lcen*(1.0 + 0.35*lr2), 0.0, 1.0);  // barrel distortion
+      vec2 lpx = vec2(1.0/720.0, 1.0/1280.0);
+      float ledge = smoothstep(0.15, 0.5, lr2);
+      vec3 lsharp = texture2D(uTex, luv).rgb;
+      vec3 lsoft = (texture2D(uTex, luv+vec2(lpx.x,0.0)*2.0).rgb + texture2D(uTex, luv-vec2(lpx.x,0.0)*2.0).rgb
+                  + texture2D(uTex, luv+vec2(0.0,lpx.y)*2.0).rgb + texture2D(uTex, luv-vec2(0.0,lpx.y)*2.0).rgb)*0.25;
+      vec3 col = mix(lsharp, lsoft, ledge*0.8); float lum=luma(col);
       col = mix(vec3(lum), col, 1.5); col.r*=1.08; col.g*=1.02; col.b*=0.96;
       col=(col-0.5)*1.35+0.5; col=pow(clamp(col,0.0,1.0), vec3(0.95));
-      float d=distance(vTex, vec2(0.5)); col *= 1.0-d*d*0.9;
       col += (rand(vTex*700.0+uTime)-0.5)*0.09;
   `},
   { name: 'Ozarks', body: `
@@ -161,12 +175,7 @@ const EFFECTS = [
       float leak = smoothstep(0.75,0.0, distance(vTex, vec2(0.95,0.05)));
       float pulse = 0.75 + 0.25*sin(uTime*0.9);
       col += vec3(1.0,0.45,0.2)*leak*0.55*pulse;
-      float d=distance(vTex, vec2(0.5)); col *= 1.0-d*d*0.7;
       col += (rand(vTex*650.0+uTime)-0.5)*0.08;
-      if(vTex.x>0.72 && vTex.x<0.96 && vTex.y>0.90 && vTex.y<0.955){
-        float seg = step(0.5, fract(vTex.x*45.0));
-        col = mix(col, vec3(1.0,0.55,0.15), 0.6*seg);
-      }
   `},
   { name: 'Dream', body: `
       vec2 px = vec2(1.0/480.0,1.0/800.0);
