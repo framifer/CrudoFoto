@@ -57,8 +57,28 @@
     color: var(--lcd); font-weight: 700; font-size: 12px;
     padding: 1px 5px; border-radius: 3px;
   }
+  .lcd-right { left: auto; right: 6px; }
   .grid { position: absolute; inset: 0; pointer-events: none; display: none; }
   .grid.on { display: block; }
+
+  /* Slider raggio fuoco sul bordo nero a sinistra (verticale) */
+  .focus-slider {
+    position: absolute; left: 2px; top: 40px; display: none;
+    flex-direction: column; align-items: center; gap: 4px;
+  }
+  .focus-slider.on { display: flex; }
+  .focus-ico { color: var(--lcd); font-size: 12px; }
+  .focus-slider input[type=range] {
+    writing-mode: vertical-lr; direction: rtl;
+    width: 8px; height: 130px; accent-color: var(--lcd);
+  }
+  /* Indicatore del punto di fuoco */
+  .focus-marker {
+    position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+    border: 2px solid var(--lcd); border-radius: 50%; display: none;
+    pointer-events: none;
+  }
+  .focus-marker.on { display: block; }
 
   /* Ghiere / rullini */
   .rail {
@@ -155,6 +175,7 @@
     <div class="title">CrudoFoto</div>
     <div class="dials">
       <div class="dial" id="dFlip">&#8635;</div>
+      <div class="dial" id="dFocus">&#9673;</div>
       <div class="dial active" id="dSound">&#9834;</div>
       <div class="dial" id="dGrid">&#9638;</div>
       <div class="dial" id="dFlash">&#9889;</div>
@@ -167,7 +188,12 @@
       <video id="video" autoplay playsinline muted style="display:none"></video>
       <canvas id="gl"></canvas>
       <canvas class="grid" id="grid"></canvas>
-      <div class="lcd" id="lcd">NAT</div>
+      <div class="lcd lcd-right" id="lcd">NAT</div>
+      <div class="focus-slider" id="focusSlider">
+        <span class="focus-ico">&#9673;</span>
+        <input type="range" id="focusRange" min="5" max="60" value="25" orient="vertical" />
+      </div>
+      <div class="focus-marker" id="focusMarker"></div>
     </div>
   </div>
 
