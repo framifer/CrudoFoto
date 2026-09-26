@@ -64,16 +64,17 @@ const EFFECTS = [
       vec3 col = texture2D(uTex,vTex).rgb;
       vec3 kb = (texture2D(uTex,vTex+vec2(kpx.x,0.0)).rgb + texture2D(uTex,vTex-vec2(kpx.x,0.0)).rgb
                + texture2D(uTex,vTex+vec2(0.0,kpx.y)).rgb + texture2D(uTex,vTex-vec2(0.0,kpx.y)).rgb)*0.25;
-      col += (col - kb) * 0.5;   // nitidezza locale (contorni piu' netti)
+      col += (col - kb) * 0.35;   // nitidezza locale piu' delicata
       float lum=luma(col);
-      vec3 tint = mix(vec3(0.86,0.98,1.02), vec3(1.05,1.0,0.92), smoothstep(0.2,0.8,lum));
-      col*=tint; col = mix(col, mix(vec3(lum), vec3(0.72,0.70,0.66),0.5), 0.18);
+      vec3 tint = mix(vec3(0.90,0.99,1.01), vec3(1.05,1.01,0.93), smoothstep(0.2,0.8,lum));
+      col*=tint; col = mix(col, mix(vec3(lum), vec3(0.72,0.70,0.66),0.5), 0.22);
       float rd = clamp((col.r-max(col.g,col.b))*2.0,0.0,1.0);
-      col.r += rd*0.06; col.g += rd*0.01;   // rossi caldi ma misurati
-      col=(col-0.5)*1.12+0.5; col+=0.012;    // meno velatura
+      col.r += rd*0.03; col = mix(col, vec3(lum), rd*0.12);  // rossi caldi ma desaturati
+      col=(col-0.5)*0.92+0.5; col+=0.035;     // luce piatta, ombre aperte
       float bd = clamp((col.b-max(col.r,col.g))*2.0,0.0,1.0);
-      col = mix(col, vec3(0.62,0.78,0.86), bd*0.22);
-      col += (rand(vTex*1024.0+uTime)-0.5)*0.05;
+      col = mix(col, vec3(0.66,0.76,0.82), bd*0.30);  // azzurri polverosi
+      col += vec3(0.020,0.014,-0.010);        // dominante calda/gialla
+      col += (rand(vTex*1400.0+uTime)-0.5)*0.03;  // grana finissima
   `},
   { name: 'Portra', body: `
       vec3 col = texture2D(uTex,vTex).rgb; float lum=luma(col);
