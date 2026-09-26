@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <meta name="theme-color" content="#1C1B19" />
 <link rel="manifest" href="manifest.webmanifest" />
-<title>CrudoFoto</title>
+<title>CrudoCamera</title>
 <style>
   :root {
     --body-dark: #1C1B19;
@@ -61,7 +61,7 @@
   .grid { position: absolute; inset: 0; pointer-events: none; display: none; }
   .grid.on { display: block; }
 
-  /* Barra raggio fuoco sotto "CrudoFoto", a sinistra (orizzontale) */
+  /* Barra raggio fuoco sotto "CrudoCamera", a sinistra (orizzontale) */
   .focus-bar {
     display: none; align-items: center; gap: 8px;
     background: var(--panel); border: 1px solid var(--edge);
@@ -170,12 +170,41 @@
   .info-list { overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
   .info-item .n { color: var(--lcd); font-weight: 700; font-size: 14px; }
   .info-item .d { color: var(--brass); font-size: 13px; margin-top: 3px; }
+
+  /* Menu dal titolo */
+  .menu-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; z-index: 25; }
+  .menu-overlay.show { display: block; }
+  .menu-box {
+    position: absolute; top: 58px; left: 14px; background: var(--panel);
+    border: 1px solid var(--edge); border-radius: 10px; padding: 6px 0; min-width: 240px;
+  }
+  .menu-title { color: var(--brass); font-weight: 700; font-size: 13px; padding: 6px 16px; }
+  .menu-item { color: var(--lcd); font-size: 14px; padding: 10px 16px; cursor: pointer; }
+  .menu-item:active { background: #3A3833; }
+
+  /* Editor post-produzione */
+  .editor-overlay {
+    position: fixed; inset: 0; z-index: 30; display: none; flex-direction: column;
+    background: linear-gradient(#1C1B19, #0E0D0C, #1C1B19); padding: 10px; gap: 8px;
+  }
+  .editor-overlay.show { display: flex; }
+  .editor-top {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--panel); border-radius: 10px; padding: 6px 10px;
+  }
+  .editor-title { color: var(--brass); font-weight: 700; font-size: 15px; }
+  .editor-screen { flex: 1; background: var(--edge); border-radius: 6px; padding: 8px; }
+  #editGl { width: 100%; height: 100%; display: block; }
+  .editor-save {
+    text-align: center; color: var(--edge); background: var(--brass);
+    font-weight: 700; border-radius: 10px; padding: 12px; cursor: pointer;
+  }
 </style>
 </head>
 <body>
 <div id="app">
   <div class="topbar">
-    <div class="title">CrudoFoto</div>
+    <div class="title" id="appTitle" style="cursor:pointer">CrudoCamera ▾</div>
     <div class="dials">
       <div class="dial" id="dFlip">&#8635;</div>
       <div class="dial" id="dFocus">&#9673;</div>
@@ -186,7 +215,7 @@
     </div>
   </div>
 
-  <!-- Slider raggio fuoco: nella striscia sotto "CrudoFoto", a sinistra -->
+  <!-- Slider raggio fuoco: nella striscia sotto "CrudoCamera", a sinistra -->
   <div class="focus-bar" id="focusBar">
     <span class="focus-ico">&#9673; Fuoco</span>
     <input type="range" id="focusRange" min="5" max="60" value="25" />
@@ -234,6 +263,33 @@
     </div>
     <div class="info-list" id="infoList"></div>
   </div>
+</div>
+
+<!-- Menu dal titolo -->
+<div class="menu-overlay" id="menuOverlay">
+  <div class="menu-box">
+    <div class="menu-title">CrudoCamera</div>
+    <div class="menu-item" id="menuImport">📷&nbsp; Importa foto (post-produzione)</div>
+  </div>
+</div>
+<input type="file" id="photoInput" accept="image/*" style="display:none" />
+
+<!-- Editor post-produzione -->
+<div class="editor-overlay" id="editorOverlay">
+  <div class="editor-top">
+    <span class="editor-title">Post-produzione</span>
+    <span class="dial" id="editorClose">&#10005;</span>
+  </div>
+  <div class="editor-screen">
+    <canvas id="editGl"></canvas>
+  </div>
+  <div class="rail" id="editEffects"></div>
+  <div class="intensity">
+    <label>INTENSITÀ</label>
+    <input type="range" id="editIntensity" min="0" max="100" value="100" />
+    <span class="val" id="editIntVal">100%</span>
+  </div>
+  <div class="editor-save" id="editorSave">💾&nbsp; Scarica foto</div>
 </div>
 
 <script src="app.js"></script>
