@@ -1,6 +1,6 @@
 {
-  "name": "CrudoFoto",
-  "short_name": "CrudoFoto",
+  "name": "CrudoCamera",
+  "short_name": "CrudoCamera",
   "description": "Fotocamera con effetti pellicola in tempo reale, in stile vintage.",
   "start_url": "./index.html",
   "scope": "./",
