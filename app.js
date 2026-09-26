@@ -1,4 +1,4 @@
-/* CrudoFoto PWA - logica principale.
+/* CrudoCamera PWA - logica principale.
  * - Accede alla fotocamera (getUserMedia)
  * - Disegna i frame con WebGL applicando l'effetto pellicola selezionato
  * - Simula la focale con un crop centrale (zoom)
@@ -454,7 +454,7 @@ function capturePhoto(){
   const doDownload = (blob) => {
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download='CrudoFoto_'+Date.now()+'.png';
+    a.download='CrudoCamera_'+Date.now()+'.png';
     a.click();
     toast('Foto salvata');
   };
@@ -487,7 +487,7 @@ function toggleRec(){
     recorder.onstop=()=>{
       const blob=new Blob(recChunks,{type:'video/webm'});
       const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob); a.download='CrudoFoto_'+Date.now()+'.webm'; a.click();
+      a.href=URL.createObjectURL(blob); a.download='CrudoCamera_'+Date.now()+'.webm'; a.click();
       toast('Video salvato');
     };
     recorder.start(); btn.classList.add('active'); btn.textContent='STOP';
@@ -634,6 +634,103 @@ window.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('langIt').onclick=()=>{ infoEnglish=false; renderInfoList(); };
   document.getElementById('langEn').onclick=()=>{ infoEnglish=true; renderInfoList(); };
 
+  // ===== MENU + IMPORT FOTO (post-produzione) =====
+  const menuOverlay = document.getElementById('menuOverlay');
+  document.getElementById('appTitle').onclick=()=>{ menuOverlay.classList.add('show'); };
+  menuOverlay.onclick=(e)=>{ if(e.target.id==='menuOverlay') menuOverlay.classList.remove('show'); };
+  document.getElementById('menuImport').onclick=()=>{
+    menuOverlay.classList.remove('show');
+    document.getElementById('photoInput').click();
+  };
+  document.getElementById('photoInput').onchange=(e)=>{
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = ()=> openEditor(img);
+    img.src = URL.createObjectURL(file);
+  };
+  document.getElementById('editorClose').onclick=()=>{
+    document.getElementById('editorOverlay').classList.remove('show');
+    if (editorRAF) cancelAnimationFrame(editorRAF);
+  };
+
   window.addEventListener('resize', ()=>{ if(gridOn) drawGrid(); });
   start();
 });
+
+// ---------- Editor post-produzione (foto importata) ----------
+let editorGl, editorPrograms = [], editorTex, editorEffect = 0, editorIntensity = 1.0, editorRAF = 0;
+let editorImg = null;
+
+function openEditor(img){
+  editorImg = img; editorEffect = 0; editorIntensity = 1.0;
+  const overlay = document.getElementById('editorOverlay');
+  overlay.classList.add('show');
+  const canvas = document.getElementById('editGl');
+  // Dimensiona il canvas alla proporzione dell'immagine, entro lo spazio
+  const r = document.querySelector('.editor-screen').getBoundingClientRect();
+  canvas.width = r.width; canvas.height = r.height;
+
+  editorGl = canvas.getContext('webgl');
+  editorPrograms = EFFECTS.map(e => {
+    const p = editorGl.createProgram();
+    const compile=(src,type)=>{const s=editorGl.createShader(type);editorGl.shaderSource(s,src);editorGl.compileShader(s);return s;};
+    editorGl.attachShader(p, compile(VERT, editorGl.VERTEX_SHADER));
+    editorGl.attachShader(p, compile(fragFor(e), editorGl.FRAGMENT_SHADER));
+    editorGl.linkProgram(p); return p;
+  });
+  const buf = editorGl.createBuffer();
+  editorGl.bindBuffer(editorGl.ARRAY_BUFFER, buf);
+  editorGl.bufferData(editorGl.ARRAY_BUFFER, new Float32Array([
+    -1,-1, 0,1,  1,-1, 1,1,  -1,1, 0,0,  1,1, 1,0
+  ]), editorGl.STATIC_DRAW);
+  editorTex = editorGl.createTexture();
+  editorGl.bindTexture(editorGl.TEXTURE_2D, editorTex);
+  editorGl.texParameteri(editorGl.TEXTURE_2D, editorGl.TEXTURE_WRAP_S, editorGl.CLAMP_TO_EDGE);
+  editorGl.texParameteri(editorGl.TEXTURE_2D, editorGl.TEXTURE_WRAP_T, editorGl.CLAMP_TO_EDGE);
+  editorGl.texParameteri(editorGl.TEXTURE_2D, editorGl.TEXTURE_MIN_FILTER, editorGl.LINEAR);
+  editorGl.texParameteri(editorGl.TEXTURE_2D, editorGl.TEXTURE_MAG_FILTER, editorGl.LINEAR);
+  editorGl.texImage2D(editorGl.TEXTURE_2D, 0, editorGl.RGB, editorGl.RGB, editorGl.UNSIGNED_BYTE, img);
+
+  // Rail effetti dell'editor
+  const er = document.getElementById('editEffects'); er.innerHTML='';
+  EFFECTS.forEach((eff,i)=>{
+    const c=document.createElement('div'); c.className='chip'+(i===0?' active':''); c.textContent=eff.name;
+    c.onclick=()=>{ editorEffect=i; er.querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); };
+    er.appendChild(c);
+  });
+  document.getElementById('editIntensity').oninput=(e)=>{
+    editorIntensity=e.target.value/100; document.getElementById('editIntVal').textContent=e.target.value+'%';
+  };
+  document.getElementById('editorSave').onclick=()=>{
+    const oc=document.getElementById('editGl');
+    oc.toBlob(b=>{
+      const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+      a.download='CrudoCamera_edit_'+Date.now()+'.png'; a.click();
+      toast('Foto scaricata');
+    }, 'image/png');
+  };
+  drawEditor();
+}
+
+function drawEditor(){
+  if (!editorGl) return;
+  const p = editorPrograms[editorEffect];
+  editorGl.useProgram(p);
+  const buf = editorGl.getParameter(editorGl.ARRAY_BUFFER_BINDING);
+  const aPos=editorGl.getAttribLocation(p,'aPos'), aTex=editorGl.getAttribLocation(p,'aTex');
+  editorGl.enableVertexAttribArray(aPos); editorGl.vertexAttribPointer(aPos,2,editorGl.FLOAT,false,16,0);
+  editorGl.enableVertexAttribArray(aTex); editorGl.vertexAttribPointer(aTex,2,editorGl.FLOAT,false,16,8);
+  editorGl.uniform1f(editorGl.getUniformLocation(p,'uTime'), performance.now()/1000);
+  editorGl.uniform1f(editorGl.getUniformLocation(p,'uIntensity'), editorIntensity);
+  editorGl.uniform1f(editorGl.getUniformLocation(p,'uZoom'), 1.0);
+  editorGl.uniform1f(editorGl.getUniformLocation(p,'uShutter'), 0.0);
+  editorGl.uniform1f(editorGl.getUniformLocation(p,'uFocusOn'), 0.0);
+  editorGl.uniform2f(editorGl.getUniformLocation(p,'uFocusPoint'), 0.5, 0.5);
+  editorGl.uniform1f(editorGl.getUniformLocation(p,'uFocusRadius'), 0.25);
+  editorGl.uniform1i(editorGl.getUniformLocation(p,'uTex'), 0);
+  editorGl.activeTexture(editorGl.TEXTURE0);
+  editorGl.bindTexture(editorGl.TEXTURE_2D, editorTex);
+  editorGl.drawArrays(editorGl.TRIANGLE_STRIP, 0, 4);
+  editorRAF = requestAnimationFrame(drawEditor);
+}
