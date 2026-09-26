@@ -61,23 +61,26 @@
   .grid { position: absolute; inset: 0; pointer-events: none; display: none; }
   .grid.on { display: block; }
 
-  /* Slider raggio fuoco sul bordo nero a sinistra (verticale) */
-  .focus-slider {
-    position: absolute; left: 2px; top: 40px; display: none;
-    flex-direction: column; align-items: center; gap: 4px;
+  /* Barra raggio fuoco sotto "CrudoFoto", a sinistra (orizzontale) */
+  .focus-bar {
+    display: none; align-items: center; gap: 8px;
+    background: var(--panel); border: 1px solid var(--edge);
+    border-radius: 8px; padding: 6px 10px;
   }
-  .focus-slider.on { display: flex; }
-  .focus-ico { color: var(--lcd); font-size: 12px; }
-  .focus-slider input[type=range] {
-    writing-mode: vertical-lr; direction: rtl;
-    width: 8px; height: 130px; accent-color: var(--lcd);
-  }
-  /* Indicatore del punto di fuoco */
+  .focus-bar.on { display: flex; }
+  .focus-ico { color: var(--lcd); font-size: 12px; font-weight: 700; }
+  .focus-bar input[type=range] { flex: 1; accent-color: var(--lcd); }
+  /* Mirino di fuoco semitrasparente (crocetta nel cerchio) */
   .focus-marker {
-    position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+    position: absolute; width: 48px; height: 48px; margin: -24px 0 0 -24px;
     border: 2px solid var(--lcd); border-radius: 50%; display: none;
-    pointer-events: none;
+    pointer-events: none; opacity: 0.7;
   }
+  .focus-marker::before, .focus-marker::after {
+    content: ''; position: absolute; background: var(--lcd);
+  }
+  .focus-marker::before { left: 50%; top: 33%; width: 2px; height: 34%; margin-left: -1px; }
+  .focus-marker::after  { top: 50%; left: 33%; height: 2px; width: 34%; margin-top: -1px; }
   .focus-marker.on { display: block; }
 
   /* Ghiere / rullini */
@@ -183,16 +186,18 @@
     </div>
   </div>
 
+  <!-- Slider raggio fuoco: nella striscia sotto "CrudoFoto", a sinistra -->
+  <div class="focus-bar" id="focusBar">
+    <span class="focus-ico">&#9673; Fuoco</span>
+    <input type="range" id="focusRange" min="5" max="60" value="25" />
+  </div>
+
   <div class="viewfinder">
     <div class="screen">
       <video id="video" autoplay playsinline muted style="display:none"></video>
       <canvas id="gl"></canvas>
       <canvas class="grid" id="grid"></canvas>
       <div class="lcd lcd-right" id="lcd">NAT</div>
-      <div class="focus-slider" id="focusSlider">
-        <span class="focus-ico">&#9673;</span>
-        <input type="range" id="focusRange" min="5" max="60" value="25" orient="vertical" />
-      </div>
       <div class="focus-marker" id="focusMarker"></div>
     </div>
   </div>
