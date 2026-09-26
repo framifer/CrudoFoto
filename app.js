@@ -35,10 +35,21 @@ const HEAD = `
   uniform float uTime;
   uniform float uIntensity;
   uniform float uShutter;
+  uniform float uFocusOn;
+  uniform vec2  uFocusPoint;
+  uniform float uFocusRadius;
   varying vec2 vTex;
   float luma(vec3 c){ return dot(c, vec3(0.299,0.587,0.114)); }
   float rand(vec2 co){ return fract(sin(dot(co, vec2(12.9898,78.233)))*43758.5453); }
-  // Tempo di posa simulato: >0 = lento (motion blur + luminoso), <0 = veloce (scuro)
+  vec4 blurAt(vec2 uv, float amt){
+    vec4 c = RAWTEX(uTex, uv);
+    c += RAWTEX(uTex, uv + vec2( amt,0.0)); c += RAWTEX(uTex, uv + vec2(-amt,0.0));
+    c += RAWTEX(uTex, uv + vec2(0.0, amt)); c += RAWTEX(uTex, uv + vec2(0.0,-amt));
+    c += RAWTEX(uTex, uv + vec2( amt, amt)*0.7); c += RAWTEX(uTex, uv + vec2(-amt, amt)*0.7);
+    c += RAWTEX(uTex, uv + vec2( amt,-amt)*0.7); c += RAWTEX(uTex, uv + vec2(-amt,-amt)*0.7);
+    return c/9.0;
+  }
+  // Tempo di posa simulato + fuoco simulato
   vec4 camShutter(vec2 uv){
     vec4 c = RAWTEX(uTex, uv);
     if (uShutter > 0.001){
@@ -50,6 +61,11 @@ const HEAD = `
       c /= 5.0; c.rgb *= (1.0 + uShutter*0.4);
     } else if (uShutter < -0.001){
       c.rgb *= (1.0 + uShutter*0.4);
+    }
+    if (uFocusOn > 0.5){
+      float d = distance(uv, uFocusPoint);
+      float sharp = smoothstep(uFocusRadius, uFocusRadius + 0.35, d);
+      if (sharp > 0.001){ c = mix(c, blurAt(uv, sharp*0.012), sharp); }
     }
     return c;
   }
@@ -285,6 +301,7 @@ let gl, programs = [], curEffect = 0, curFocal = 0, intensity = 1.0;
 let curShutter = 2;   // indice tempo di posa (1/60 = normale)
 let texture, video, startTime = performance.now();
 let soundOn = true, gridOn = false, flashOn = false;
+let focusOn = false, focusX = 0.5, focusY = 0.5, focusRadius = 0.25;
 let recorder = null, recChunks = [];
 
 // ---------- WebGL ----------
@@ -352,6 +369,9 @@ function draw() {
   gl.uniform1f(gl.getUniformLocation(p, 'uIntensity'), intensity);
   gl.uniform1f(gl.getUniformLocation(p, 'uZoom'), FOCALS[curFocal][1]);
   gl.uniform1f(gl.getUniformLocation(p, 'uShutter'), SHUTTER_SPEEDS[curShutter][1]);
+  gl.uniform1f(gl.getUniformLocation(p, 'uFocusOn'), focusOn ? 1.0 : 0.0);
+  gl.uniform2f(gl.getUniformLocation(p, 'uFocusPoint'), focusX, focusY);
+  gl.uniform1f(gl.getUniformLocation(p, 'uFocusRadius'), focusRadius);
   gl.uniform1i(gl.getUniformLocation(p, 'uTex'), 0);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -406,9 +426,14 @@ function drawGrid(){
   const r=g.getBoundingClientRect(); g.width=r.width; g.height=r.height;
   const c=g.getContext('2d'); c.clearRect(0,0,g.width,g.height);
   c.strokeStyle='rgba(255,255,255,.45)'; c.lineWidth=1;
+  // Rettangolo 3:2 centrato (h = w * 1.5): la griglia sta solo qui
+  const w=g.width, h=g.height, targetH=w*1.5;
+  let gx,gy,gw,gh;
+  if (targetH <= h){ gw=w; gh=targetH; gx=0; gy=(h-targetH)/2; }
+  else { gw=h*2/3; gh=h; gx=(w-gw)/2; gy=0; }
   for(const f of [1/3,2/3]){
-    c.beginPath(); c.moveTo(g.width*f,0); c.lineTo(g.width*f,g.height); c.stroke();
-    c.beginPath(); c.moveTo(0,g.height*f); c.lineTo(g.width,g.height*f); c.stroke();
+    c.beginPath(); c.moveTo(gx+gw*f, gy); c.lineTo(gx+gw*f, gy+gh); c.stroke();
+    c.beginPath(); c.moveTo(gx, gy+gh*f); c.lineTo(gx+gw, gy+gh*f); c.stroke();
   }
 }
 
@@ -545,6 +570,32 @@ window.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('infoOverlay').classList.add('show');
   };
   document.getElementById('dFlip').onclick=()=>{ flipCamera(); };
+
+  // ===== FUOCO simulato =====
+  const focusSlider = document.getElementById('focusSlider');
+  const focusMarker = document.getElementById('focusMarker');
+  const screenEl = document.querySelector('.screen');
+  document.getElementById('dFocus').onclick=(e)=>{
+    focusOn = !focusOn;
+    e.target.classList.toggle('active', focusOn);
+    focusSlider.classList.toggle('on', focusOn);
+    focusMarker.classList.toggle('on', focusOn);
+  };
+  // Tocco sulla parte inquadrata = punto di fuoco
+  screenEl.addEventListener('pointerdown', (ev)=>{
+    if (!focusOn) return;
+    const r = screenEl.getBoundingClientRect();
+    const x = (ev.clientX - r.left) / r.width;
+    const y = (ev.clientY - r.top) / r.height;
+    focusX = Math.min(1, Math.max(0, x));
+    focusY = Math.min(1, Math.max(0, y));
+    focusMarker.style.left = (focusX * r.width) + 'px';
+    focusMarker.style.top  = (focusY * r.height) + 'px';
+  });
+  // Slider raggio fuoco
+  document.getElementById('focusRange').oninput=(e)=>{
+    focusRadius = e.target.value / 100;
+  };
   document.getElementById('infoClose').onclick=()=>{
     document.getElementById('infoOverlay').classList.remove('show');
   };
