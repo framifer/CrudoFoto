@@ -60,11 +60,7 @@ const HEAD = `
 const EFFECTS = [
   { name: 'Nativa', body: `vec3 col = texture2D(uTex, vTex).rgb;` },
   { name: 'Kodachrome', body: `
-      vec2 kpx = vec2(1.0/720.0, 1.0/1280.0);
       vec3 col = texture2D(uTex,vTex).rgb;
-      vec3 kb = (texture2D(uTex,vTex+vec2(kpx.x,0.0)).rgb + texture2D(uTex,vTex-vec2(kpx.x,0.0)).rgb
-               + texture2D(uTex,vTex+vec2(0.0,kpx.y)).rgb + texture2D(uTex,vTex-vec2(0.0,kpx.y)).rgb)*0.25;
-      col += (col - kb) * 0.35;   // nitidezza locale piu' delicata
       float lum=luma(col);
       vec3 tint = mix(vec3(0.90,0.99,1.01), vec3(1.05,1.01,0.93), smoothstep(0.2,0.8,lum));
       col*=tint; col = mix(col, mix(vec3(lum), vec3(0.72,0.70,0.66),0.5), 0.22);
@@ -118,13 +114,13 @@ const EFFECTS = [
   `},
   { name: 'Lomography', body: `
       vec2 lcen = vTex - 0.5; float lr2 = dot(lcen, lcen);
-      vec2 luv = clamp(0.5 + lcen*(1.0 + 0.35*lr2), 0.0, 1.0);  // barrel distortion
+      vec2 luv = clamp(0.5 + lcen*(1.0 + 0.12*lr2), 0.0, 1.0);  // barrel distortion lieve
       vec2 lpx = vec2(1.0/720.0, 1.0/1280.0);
       float ledge = smoothstep(0.15, 0.5, lr2);
       vec3 lsharp = texture2D(uTex, luv).rgb;
       vec3 lsoft = (texture2D(uTex, luv+vec2(lpx.x,0.0)*2.0).rgb + texture2D(uTex, luv-vec2(lpx.x,0.0)*2.0).rgb
                   + texture2D(uTex, luv+vec2(0.0,lpx.y)*2.0).rgb + texture2D(uTex, luv-vec2(0.0,lpx.y)*2.0).rgb)*0.25;
-      vec3 col = mix(lsharp, lsoft, ledge*0.8); float lum=luma(col);
+      vec3 col = mix(lsharp, lsoft, ledge*0.5); float lum=luma(col);
       col = mix(vec3(lum), col, 1.5); col.r*=1.08; col.g*=1.02; col.b*=0.96;
       col=(col-0.5)*1.35+0.5; col=pow(clamp(col,0.0,1.0), vec3(0.95));
       col += (rand(vTex*700.0+uTime)-0.5)*0.09;
@@ -145,6 +141,31 @@ const EFFECTS = [
       float hi=smoothstep(0.55,1.0,lum); col = mix(col, vec3(0.95,0.96,0.97), hi*0.18);
       col=(col-0.5)*0.85+0.5; col += vec3(-0.005,0.0,0.02);
       col += (rand(vTex*1600.0+uTime)-0.5)*0.02;
+  `},
+  { name: 'Fuji', body: `
+      vec3 col = texture2D(uTex,vTex).rgb; float lum=luma(col);
+      col=(col-0.5)*0.82+0.5; col+=0.05;                 // contrasto basso, ombre aperte
+      float hi=smoothstep(0.55,1.0,lum); col=mix(col, vec3(0.97,0.98,1.0), hi*0.35);  // alte luci soffiate
+      col.r*=0.97; col.g*=1.01; col.b*=1.06;
+      col += vec3(-0.005,0.01,0.03)*(1.0-lum);           // ombre fredde/ciano
+      float warm = clamp((col.r-max(col.g,col.b))*2.2,0.0,1.0);
+      vec3 desat = mix(col, vec3(lum), 0.35);
+      col = mix(desat, col, warm); col.r += warm*0.05;   // accenti caldi vivi
+      col += (rand(vTex*1500.0+uTime)-0.5)*0.025;        // grana finissima
+  `},
+  { name: 'Ricoh', body: `
+      vec2 px = vec2(1.0/720.0,1.0/1280.0);
+      vec3 col = texture2D(uTex,vTex).rgb;
+      vec3 rb = (texture2D(uTex,vTex+vec2(px.x,0.0)*1.5).rgb + texture2D(uTex,vTex-vec2(px.x,0.0)*1.5).rgb
+               + texture2D(uTex,vTex+vec2(0.0,px.y)*1.5).rgb + texture2D(uTex,vTex-vec2(0.0,px.y)*1.5).rgb)*0.25;
+      col += (col - rb) * 0.28;   // nitidezza incisa "GR"
+      float lum=luma(col);
+      col=(col-0.5)*1.18+0.5;     // contrasto deciso, neri presenti
+      float gd = clamp((col.g-max(col.r,col.b))*2.0,0.0,1.0);
+      col = mix(col, col*vec3(0.96,1.04,1.0), gd*0.6); col.b += gd*0.01;  // verdi ricchi/freddi
+      float w = clamp((col.r-col.b)*1.8,0.0,1.0); col.r += w*0.02;        // pelle calda sobria
+      col = mix(vec3(lum), col, 1.08);
+      col += (rand(vTex*1400.0+uTime)-0.5)*0.02;
   `},
   { name: 'CanonPS', body: `
       vec2 px = vec2(1.0/720.0,1.0/1280.0);
@@ -232,6 +253,10 @@ const EFFECT_INFO = [
              "Inspired by noir/crime TV grading: a strong teal cast, desaturated and gloomy, deep shadows, a tense mood."],
   ['Japan', "Ispirato all'estetica giapponese (Yūgen / Mono no aware): palette muted e fredda, azzurri soffici, basso contrasto, delicatezza.",
              "Inspired by the Japanese aesthetic (Yūgen / Mono no aware): a muted cool palette, soft blues, low contrast, delicacy."],
+  ['Fuji', "Look cinematografico/lifestyle in stile Fuji: alte luci soffiate e ariose, tonalità fredde e delicate, contrasto basso e ombre aperte, ma accenti caldi (rossi/arancioni) vividi. Grana finissima.",
+             "A Fuji-style cinematic/lifestyle look: airy blown-out highlights, cool delicate tones, low contrast and open shadows, but vivid warm accents (reds/oranges). Very fine grain."],
+  ['Ricoh', "Look da compatta 'street' in stile Ricoh GR: immagine incisa e nitida, contrasto deciso con neri presenti, verdi ricchi e leggermente freddi, toni pelle caldi ma sobri. Resa naturale.",
+             "A 'street' compact look in the Ricoh GR style: a crisp, incisive image, decisive contrast with present blacks, rich slightly-cool greens, warm but restrained skin tones. A natural rendering."],
   ['CanonPS', "Ispirato alla compatta Canon PowerShot SD1000 (metà anni 2000): colori caldi e vividi, contrasto netto, morbidezza JPEG.",
              "Inspired by the Canon PowerShot SD1000 compact (mid-2000s): warm vivid colours, crisp contrast, JPEG softness."],
   ['Iphone', "Ispirato alla fotocamera 2MP del primo iPhone (2007): dettagli morbidi, cieli bruciati, toni caldi, al chiuso nebbioso e sgranato.",
