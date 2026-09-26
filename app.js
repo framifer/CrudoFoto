@@ -442,13 +442,38 @@ function capturePhoto(){
   // Vibrazione tattile breve allo scatto (solo foto, non video)
   if (navigator.vibrate) { try { navigator.vibrate(35); } catch(e){} }
   const canvas=document.getElementById('gl');
-  canvas.toBlob(b=>{
+
+  // Rotazione in base a come e' tenuto il telefono (orientamento schermo)
+  let angle = 0;
+  try {
+    const so = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+    // so: 0 = verticale, 90/270 = orizzontale. Ruotiamo di conseguenza.
+    angle = (typeof so === 'number') ? so : 0;
+  } catch(e) {}
+
+  const doDownload = (blob) => {
     const a=document.createElement('a');
-    a.href=URL.createObjectURL(b);
+    a.href=URL.createObjectURL(blob);
     a.download='CrudoFoto_'+Date.now()+'.png';
     a.click();
     toast('Foto salvata');
-  }, 'image/png');
+  };
+
+  if (angle === 0) {
+    canvas.toBlob(doDownload, 'image/png');
+  } else {
+    // Disegna il frame su un canvas ruotato, poi esporta
+    const rad = angle * Math.PI / 180;
+    const swap = (angle === 90 || angle === 270);
+    const oc = document.createElement('canvas');
+    oc.width  = swap ? canvas.height : canvas.width;
+    oc.height = swap ? canvas.width  : canvas.height;
+    const ctx = oc.getContext('2d');
+    ctx.translate(oc.width/2, oc.height/2);
+    ctx.rotate(rad);
+    ctx.drawImage(canvas, -canvas.width/2, -canvas.height/2);
+    oc.toBlob(doDownload, 'image/png');
+  }
 }
 
 function toggleRec(){
